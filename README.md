@@ -78,14 +78,14 @@ This section explains the various parameters and settings in the configuration f
 - `pairwise_dimension`: 64  
   Dimension of pairwise interactions in the model.
 
-## Data Scaling
+### Data Scaling
 - `use_data_percentage`: 1  
   The percentage of data used from the dataset.
 
 - `use_dirty_data`: true  
   Indicates whether to include 'dirty' or noisy data in the training process. Useful for testing robustness or when clean data is limited.
 
-## Other Configurations
+### Other Configurations
 - `fold`: 0  
   The current fold in use if the data is split into folds for cross-validation.
 
