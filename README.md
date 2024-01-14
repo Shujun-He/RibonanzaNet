@@ -13,6 +13,8 @@ Create the environment from the environment file ```env.yml```
 
 ```conda env create -f env.yml```
 
+Install ranger optimizer
+
 ```
 git clone https://github.com/lessw2020/Ranger-Deep-Learning-Optimizer
 cd Ranger-Deep-Learning-Optimizer
