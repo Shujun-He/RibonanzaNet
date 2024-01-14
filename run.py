@@ -165,7 +165,6 @@ val_dataset_name=[dataset_name[i] for i in val_indices]
 
 
 train_dataset=RNADataset(train_indices,data_dict,k=config.k,
-                         use_bpp=config.use_bpp,bpp_file_folder=config.bpp_file_folder,
                          flip=config.use_flip_aug)
 train_loader=DataLoader(train_dataset,batch_size=config.batch_size,shuffle=True,
                         collate_fn=Custom_Collate_Obj(),num_workers=min(config.batch_size,16))
@@ -174,7 +173,7 @@ sample=train_dataset[0]
 
 
 
-val_dataset=RNADataset(val_indices,data_dict,train=False,k=config.k,use_bpp=config.use_bpp,bpp_file_folder=config.bpp_file_folder)
+val_dataset=RNADataset(val_indices,data_dict,train=False,k=config.k)
 val_loader=DataLoader(val_dataset,batch_size=config.test_batch_size,shuffle=False,
                         collate_fn=Custom_Collate_Obj(),num_workers=min(config.batch_size,16))
 
@@ -233,9 +232,6 @@ for epoch in range(config.epochs):
         # exit()
 
         #exit()
-        if config.use_bpp:
-            bpp=batch['bpps'].float().unsqueeze(1)#.cuda().float()
-            batch_attention_mask=torch.cat([batch_attention_mask[:,:src.shape[-1],:src.shape[-1]],bpp],1)
         #batch_attention_mask=batch['attention_mask']
         #batch_attention_mask=torch.stack([batch_attention_mask[:,:src.shape[-1],:src.shape[-1]],bpp],1)
         SN=batch['SN']
@@ -292,9 +288,6 @@ for epoch in range(config.epochs):
         #flipped
         #batch_attention_mask=batch['attention_mask'].unsqueeze(1)[:,:,:src.shape[-1],:src.shape[-1]]
         src_flipped=src.clone()
-        if config.use_bpp:
-            bpp=batch['bpps'].float().unsqueeze(1)#.cuda().float()
-            bpp_flipped=bpp.clone()
 
         length=batch['length']
         for batch_idx in range(len(src)):

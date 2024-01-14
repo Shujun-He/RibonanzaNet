@@ -25,7 +25,7 @@ def load_bpp(filename,seq_length=177):
     return matrix
 
 class RNADataset(Dataset):
-    def __init__(self,indices,data_dict,k=5,train=True,flip=False,use_bpp=False,bpp_file_folder=None):
+    def __init__(self,indices,data_dict,k=5,train=True,flip=False):
 
         self.indices=indices
         self.data_dict=data_dict
@@ -34,8 +34,7 @@ class RNADataset(Dataset):
         self.tokens['P']=4
         self.train=train
         self.flip=flip
-        self.use_bpp=use_bpp
-        self.bpp_file_folder=bpp_file_folder
+
 
 
     def generate_src_mask(self,L1,L2,k):
@@ -84,18 +83,11 @@ class RNADataset(Dataset):
 
         SN=torch.tensor(self.data_dict['SN'][idx]).float()
 
-        if self.use_bpp:
-            id=self.data_dict['sequence_ids'][idx]
-            bpp=load_bpp(f"{self.bpp_file_folder}/{id}.txt",len(sequence))
-            bpp=torch.tensor(bpp).float()
-
 
 
 
         if (self.train and np.random.uniform()>0.5) and self.flip:
             sequence=sequence.flip(-1)
-            if self.use_bpp:
-                bpp=bpp.flip(-1).flip(-2)
             #attention_mask=attention_mask.flip(-1).flip(-2)
             #mask=mask.flip(-1)
             labels=labels.flip(-2)
@@ -109,8 +101,7 @@ class RNADataset(Dataset):
               "errors":errors,
               "SN":SN,}
 
-        if self.use_bpp:
-            data['bpp']=bpp
+
         return data
 
 class TestRNAdataset(RNADataset):
@@ -135,11 +126,6 @@ class TestRNAdataset(RNADataset):
         # bpp=torch.tensor(bpp).float()
         data={'sequence':sequence,
               "mask":mask,}
-        if self.use_bpp:
-            id=self.data_dict['sequence_ids'][idx]
-            bpp=load_bpp(f"{self.bpp_file_folder}/{id}.txt",len(sequence))
-            bpp=torch.tensor(bpp).float()
-            data['bpp']=bpp
 
         return data
 

@@ -63,35 +63,13 @@ class ScaledDotProductAttention(nn.Module):
 
         #exit()
         if mask is not None:
-            #attn = attn.masked_fill(mask == 0, -1e9)
-            #attn = attn#*self.gamma
-            # print(attn.shape)
-            # print(mask.shape)
-            # exit()
-            # print(attn.shape)
-            # print(mask.shape)
-            # exit()
-            # print(attn.shape)
-            # print(mask.shape)
-            # exit()
-            
-            attn = attn+mask
-            # print(attn.shape)
-            # exit()
+
+            attn = attn+mask # this is actually the bias
+
 
 
         if attn_mask is not None:
-            # print(attn.shape)
-            # print(attn_mask.shape)
-            # attn = attn+attn_mask
-            #attn=attn.float().masked_fill(attn_mask == 0, float('-inf'))
-            #pass
-            for i in range(len(attn_mask)):
-                attn_mask[i,0]=attn_mask[i,0].fill_diagonal_(1)
-            # print(attn_mask.shape)
-            # exit()
-            #print(torch.diagonal(attn_mask).mean())
-            attn=attn.float().masked_fill(attn_mask == 0, float('-1e-9'))
+            attn=attn.float().masked_fill(attn_mask == -1, float('-1e-9'))
 
 
         attn = self.dropout(F.softmax(attn, dim=-1))
@@ -153,26 +131,9 @@ class MultiHeadAttention(nn.Module):
         # print(k.shape)
         # print(v.shape)
         if src_mask is not None:
-            src_mask=src_mask[:,:q.shape[2]].unsqueeze(-1).float()
-            # q=q+src_mask
-            # k=k+src_mask
-            # print(src_mask.shape)
-            # print(src_mask[0])
-            attn_mask=torch.matmul(src_mask,src_mask.permute(0,2,1))#.long()
-            #attn_mask=attn_mask.float().masked_fill(attn_mask == 0, float('-inf')).masked_fill(attn_mask == 1, float(0.0))
-            attn_mask=attn_mask.unsqueeze(1)
-            # print(attn_mask.shape)
-            # exit()
-            # print(src_mask.shape)
-            #to_plot=attn_mask[1].squeeze().detach().cpu().numpy()
-            #plt.imshow(to_plot)
-            #plt.show()
-            # exit()
-            # exit()
-            # src_mask
-            # src_mask
-            #print(q[0,0,:,0])
-        #exit()
+            src_mask[src_mask==0]=-1
+            src_mask=src_mask.unsqueeze(-1).float()
+            attn_mask=torch.matmul(src_mask,src_mask.permute(0,2,1)).unsqueeze(1)
             q, attn = self.attention(q, k, v, mask=mask,attn_mask=attn_mask)
         else:
             q, attn = self.attention(q, k, v, mask=mask)
@@ -425,7 +386,7 @@ class RibonanzaNet(nn.Module):
         print(f"constructing {config.nlayers} ConvTransformerEncoderLayers")
         for i in range(config.nlayers):
             if i!= config.nlayers-1:
-                k=5
+                k=config.k
             else:
                 k=1
             #print(k)
@@ -557,10 +518,11 @@ class TriangleAttention(nn.Module):
 
 if __name__ == "__main__":
     from Functions import *
-    config = load_config_from_yaml("configs/bpp.yaml")
-    model=RibonanzaNet(config,use_syncbn=False).cuda()
+    config = load_config_from_yaml("configs/pairwise.yaml")
+    model=RibonanzaNet(config).cuda()
     x=torch.ones(4,128).long().cuda()
-    mask=torch.ones(4,9,128).long().cuda()
+    mask=torch.ones(4,128).long().cuda()
+    mask[:,120:]=0
     print(model(x,src_mask=mask).shape)
 
     # tri_attention=TriangleAttention(wise='row')

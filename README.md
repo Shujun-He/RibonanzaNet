@@ -2,22 +2,39 @@
 
 Training code for RibonanzaNet
 
-# Data Download
+## Data Download
 
-# Environment
+You just need ```train_data.csv``` and ```test_sequences.csv``` from 
+https://www.kaggle.com/competitions/stanford-ribonanza-rna-folding/data
 
-# Config 
+## Environment
 
-# README for Configuration File
+Create the environment from the environment file ```env.yml```
 
-This README document explains the various parameters and settings in the configuration file for a machine learning model. Understanding each parameter is crucial for effectively training and optimizing the model.
+```conda env create -f env.yml```
 
-## Model Hyperparameters
+## How to run
+
+### Training
+```accelerate launch run.py --config_path configs/pairwise.yaml```
+
+### Inference
+```accelerate launch inference.py --config_path configs/pairwise.yaml```
+
+### Process raw prediction into submission file for Ribonanza
+```python make_submission.py --config_path configs/pairwise.yaml```
+
+
+## Configuration File
+
+This section explains the various parameters and settings in the configuration file for RibonanzaNet
+
+### Model Hyperparameters
 - `learning_rate`: 0.001  
   The learning rate for the optimizer. Determines the step size at each iteration while moving toward a minimum of the loss function.
 
 - `batch_size`: 2  
-  Number of samples processed before the model is updated.
+  Number of samples processed per GPU per batch. 
 
 - `test_batch_size`: 8  
   Batch size used for testing the model.
@@ -25,23 +42,20 @@ This README document explains the various parameters and settings in the configu
 - `epochs`: 40  
   Total number of training cycles the model goes through.
 
-- `optimizer`: "ranger"  
-  The optimization algorithm used for minimizing the loss function. Ranger is a synergistic optimizer combining RAdam and LookAhead.
-
 - `dropout`: 0.05  
   The dropout rate for regularization to prevent overfitting. It represents the proportion of neurons that are randomly dropped out of the neural network during training.
 
 - `weight_decay`: 0.0001  
   Regularization technique to prevent overfitting by penalizing large weights.
 
-- `k`: 9  
-  A specific hyperparameter relevant to the model, requiring further context for detailed explanation.
+- `k`: 5
+  1D Convolution kernel size
 
 - `ninp`: 256  
   The size of the input dimension.
 
 - `nlayers`: 9  
-  Number of layers in the neural network.
+  Number of RibonanzaNet blocks.
 
 - `nclass`: 2  
   Number of classes for classification tasks.
@@ -52,14 +66,8 @@ This README document explains the various parameters and settings in the configu
 - `nhead`: 8  
   The number of heads in multi-head attention models.
 
-- `use_bpp`: False  
-  A boolean parameter that specifies whether to use base pair probability (BPP) in the model.
-
 - `use_flip_aug`: true  
-  Indicates whether flip augmentation is used during training.
-
-- `bpp_file_folder`: "../../input/bpp_files/"  
-  The directory where base pair probability files are stored.
+  Indicates whether flip augmentation is used during training/inference.
 
 - `gradient_accumulation_steps`: 2  
   Number of steps to accumulate gradients before performing a backward/update pass.
@@ -85,12 +93,18 @@ This README document explains the various parameters and settings in the configu
   Total number of folds for cross-validation.
 
 - `input_dir`: "../../input/"  
-  Directory for input data.
+  Directory for input data. Put ```train_data.csv``` and ```test_sequences.csv``` here. 
 
 - `gpu_id`: "0"  
-  Identifier for the GPU used for training. Useful in multi-GPU setups.
+  Identifier for the GPU used for training. Useful in single-GPU setup.
 
 ---
 
-Remember, the effectiveness of these parameters can vary depending on the specific nature of the dataset and the model architecture. Experimentation and adjustment might be necessary to achieve optimal results.
+## File structure
+ 
+```logs``` has the csv log file with train/val oss,
+```models``` has model weights and optimizer states,
+```oofs``` has the val predictions
+
+
 
