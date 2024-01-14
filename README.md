@@ -12,9 +12,12 @@ https://www.kaggle.com/competitions/stanford-ribonanza-rna-folding/data
 Create the environment from the environment file ```env.yml```
 
 ```conda env create -f env.yml```
-```git clone https://github.com/lessw2020/Ranger-Deep-Learning-Optimizer
+
+```
+git clone https://github.com/lessw2020/Ranger-Deep-Learning-Optimizer
 cd Ranger-Deep-Learning-Optimizer
-pip install -e .``` 
+pip install -e .
+``` 
 
 ## How to run
 
