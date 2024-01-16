@@ -26,7 +26,7 @@ pip install -e .
 ## How to run
 First activate environment ```conda activate torch```
 
-Set up accelerate with ```accelerate config``` in the terminal or with ```--config_path option```
+Set up accelerate with ```accelerate config``` in the terminal or with ```--config_path``` option
 
 
 
