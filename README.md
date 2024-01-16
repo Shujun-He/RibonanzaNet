@@ -28,7 +28,7 @@ First activate environment ```conda activate torch```
 
 Set up accelerate with ```accelerate config``` in the terminal or with ```--config_path``` option
 
-
+For an example of a accelerate config file, see ```accelerate_config.yaml```
 
 
 ### Training
