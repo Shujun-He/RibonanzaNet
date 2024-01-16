@@ -4,7 +4,7 @@ Training code for RibonanzaNet
 
 ## Data Download
 
-You just need ```train_data.csv``` and ```test_sequences.csv``` from 
+You just need ```train_data.csv```, ```test_sequences.csv```, and ```sample_submission.csv``` from 
 https://www.kaggle.com/competitions/stanford-ribonanza-rna-folding/data
 
 ## Environment
@@ -14,6 +14,8 @@ Create the environment from the environment file ```env.yml```
 ```conda env create -f env.yml```
 
 Install ranger optimizer
+
+```conda activate torch```
 
 ```
 git clone https://github.com/lessw2020/Ranger-Deep-Learning-Optimizer
@@ -45,10 +47,10 @@ This section explains the various parameters and settings in the configuration f
   Number of samples processed per GPU per batch. 
 
 - `test_batch_size`: 8  
-  Batch size used for testing the model.
+  Batch size used for testing the model per GPU per batch.
 
 - `epochs`: 40  
-  Total number of training cycles the model goes through.
+  Total number of training epochs the model goes through.
 
 - `dropout`: 0.05  
   The dropout rate for regularization to prevent overfitting. It represents the proportion of neurons that are randomly dropped out of the neural network during training.
@@ -88,10 +90,10 @@ This section explains the various parameters and settings in the configuration f
 
 ### Data Scaling
 - `use_data_percentage`: 1  
-  The percentage of data used from the dataset.
+  The fraction of data used from the dataset (1= full data training).
 
 - `use_dirty_data`: true  
-  Indicates whether to include 'dirty' or noisy data in the training process. Useful for testing robustness or when clean data is limited.
+  Indicates whether to include training data that has only one of 2A3/DMS profiles with SN>1. 
 
 ### Other Configurations
 - `fold`: 0  
@@ -101,7 +103,7 @@ This section explains the various parameters and settings in the configuration f
   Total number of folds for cross-validation.
 
 - `input_dir`: "../../input/"  
-  Directory for input data. Put ```train_data.csv``` and ```test_sequences.csv``` here. 
+  Directory for input data. Put ```train_data.csv```, ```test_sequences.csv```, and ```sample_submission.csv``` here. 
 
 - `gpu_id`: "0"  
   Identifier for the GPU used for training. Useful in single-GPU setup.
