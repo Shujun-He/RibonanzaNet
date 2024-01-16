@@ -26,6 +26,11 @@ pip install -e .
 ## How to run
 First activate environment ```conda activate torch```
 
+Set up accelerate with ```accelerate config``` in the terminal or with ```--config_path option```
+
+
+
+
 ### Training
 ```accelerate launch run.py --config_path configs/pairwise.yaml```
 
