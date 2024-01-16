@@ -46,7 +46,7 @@ assert len(test_ids)==len(data)
 #exit()
 #exit()
 
-val_dataset=TestRNAdataset(np.arange(len(data)),data_dict,k=config.k,use_bpp=config.use_bpp,bpp_file_folder=config.bpp_file_folder)
+val_dataset=TestRNAdataset(np.arange(len(data)),data_dict,k=config.k)
 val_loader=DataLoader(val_dataset,batch_size=config.test_batch_size,shuffle=False,
                         collate_fn=Custom_Collate_Obj_test(),num_workers=min(config.batch_size,32))
 
