@@ -6,7 +6,7 @@ epochs: 30            # Total training epochs
 #optimizer: "ranger"       # Optimization algorithm
 dropout: 0.05     # Dropout regularization rate
 weight_decay: 0.0001
-k: 9
+k: 5
 ninp: 256
 nlayers: 9
 nclass: 2
