@@ -39,70 +39,89 @@ logger=CSVLogger(['epoch','train_loss','val_loss'],f'logs/fold{config.fold}.csv'
 #exit()
 
 #data=pd.read_csv(f"{config.input_dir}/train_data.v2.3.0.csv.gz")
-data=pl.read_csv(f"{config.input_dir}/train_data.csv")
+# data=pl.read_csv(f"{config.input_dir}/train_data.csv")
 
-#new_ids=
-#data=data.with_columns(pl.Series(name="id", values=[id+"_"+exp_type for id, exp_type in zip(data['sequence_id'],data['experiment_type'])]))
+# #new_ids=
+# #data=data.with_columns(pl.Series(name="id", values=[id+"_"+exp_type for id, exp_type in zip(data['sequence_id'],data['experiment_type'])]))
 
-pl.Config.set_fmt_str_lengths(100)
-# print(data['dataset_name'].value_counts(sort=True))
-# print(data['dataset_name'].value_counts(sort=True))
-# exit()
+# pl.Config.set_fmt_str_lengths(100)
+# # print(data['dataset_name'].value_counts(sort=True))
+# # print(data['dataset_name'].value_counts(sort=True))
+# # exit()
 
-data=drop_pk5090_duplicates(data)
+# data=drop_pk5090_duplicates(data)
 
-print("before dropping duplicates data shape is:",data.shape)
-data=data.unique(subset=["sequence_id", "experiment_type"]).sort(["sequence_id", "experiment_type"])
-print("after dropping duplicates data shape is:",data.shape)
-#data=data.sort(["signal_to_noise"],descending=True).unique(subset=["sequence_id", "experiment_type"]).sort(["sequence_id", "experiment_type"])
+# print("before dropping duplicates data shape is:",data.shape)
+# data=data.unique(subset=["sequence_id", "experiment_type"]).sort(["sequence_id", "experiment_type"])
+# print("after dropping duplicates data shape is:",data.shape)
+# #data=data.sort(["signal_to_noise"],descending=True).unique(subset=["sequence_id", "experiment_type"]).sort(["sequence_id", "experiment_type"])
 
-n_sequences_total=len(data)//2
-#get necessary data as lists and numpy arrays
-seq_length=206
+# n_sequences_total=len(data)//2
+# #get necessary data as lists and numpy arrays
+# seq_length=206
 
-#filter out a sequence if min SN is smaller than 1
-SN=data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
-SN=SN.min(-1)
-SN=np.repeat(SN,2)
-print("before filtering data shape is:",data.shape)
-dirty_data=data.filter((SN<=1))
-data=data.filter(SN>1)
-print("after filtering data shape is:",data.shape)
-print("direty data shape is:",dirty_data.shape)
+# #filter out a sequence if min SN is smaller than 1
+# SN=data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
+# SN=SN.min(-1)
+# SN=np.repeat(SN,2)
+# print("before filtering data shape is:",data.shape)
+# dirty_data=data.filter((SN<=1))
+# data=data.filter(SN>1)
+# print("after filtering data shape is:",data.shape)
+# print("direty data shape is:",dirty_data.shape)
 
-# get sequences where one of 2A3/DMS has SN>1
-dirty_SN=dirty_data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
-dirty_SN=dirty_SN.max(-1)
-dirty_SN=np.repeat(dirty_SN,2)
-dirty_data=dirty_data.filter(dirty_SN>1)
-print("after filtering dirty_data shape is:",dirty_data.shape)
-
-
-label_names=["reactivity_{:04d}".format(number+1) for number in range(seq_length)]
-error_label_names=["reactivity_error_{:04d}".format(number+1) for number in range(seq_length)]
-
-sequences=data.unique(subset=["sequence_id"],maintain_order=True)['sequence'].to_list()
-sequence_ids=data.unique(subset=["sequence_id"],maintain_order=True)['sequence_id'].to_list()
-labels=data[label_names].to_numpy().astype('float32').reshape(-1,2,206).transpose(0,2,1)
-errors=data[error_label_names].to_numpy().astype('float32').reshape(-1,2,206).transpose(0,2,1)
-SN=data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
-dataset_name=data['dataset_name'].to_list()
-dataset_name=[dataset_name[i*2].replace('2A3','NULL').replace('DMS','NULL') for i in range(len(data)//2)]
+# # get sequences where one of 2A3/DMS has SN>1
+# dirty_SN=dirty_data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
+# dirty_SN=dirty_SN.max(-1)
+# dirty_SN=np.repeat(dirty_SN,2)
+# dirty_data=dirty_data.filter(dirty_SN>1)
+# print("after filtering dirty_data shape is:",dirty_data.shape)
 
 
-data_dict = {
-    'sequences': sequences,
-    'sequence_ids': sequence_ids,
-    'labels': labels,
-    'errors': errors,
-    'SN': SN,
-}
+# label_names=["reactivity_{:04d}".format(number+1) for number in range(seq_length)]
+# error_label_names=["reactivity_error_{:04d}".format(number+1) for number in range(seq_length)]
+
+# sequences=data.unique(subset=["sequence_id"],maintain_order=True)['sequence'].to_list()
+# sequence_ids=data.unique(subset=["sequence_id"],maintain_order=True)['sequence_id'].to_list()
+# labels=data[label_names].to_numpy().astype('float32').reshape(-1,2,206).transpose(0,2,1)
+# errors=data[error_label_names].to_numpy().astype('float32').reshape(-1,2,206).transpose(0,2,1)
+# SN=data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
+# dataset_name=data['dataset_name'].to_list()
+# dataset_name=[dataset_name[i*2].replace('2A3','NULL').replace('DMS','NULL') for i in range(len(data)//2)]
+
+
+# data_dict = {
+#     'sequences': sequences,
+#     'sequence_ids': sequence_ids,
+#     'labels': labels,
+#     'errors': errors,
+#     'SN': SN,
+# }
 #exit()
+
+with open('data/data_dict.p','rb') as f:
+    # data_dict = {
+    #     'sequences': sequences,
+    #     'sequence_ids': sequence_ids,
+    #     'SN': SN,
+    # }
+    data_dict=pickle.load(f)
+
+
+with open('data/dataset_name.p','rb') as f:
+    dataset_name=pickle.load(f)
+
+data_shape=np.load('data/data_shape.npy')
+
+data_dict['labels']=np.memmap('data/labels.mmap', dtype='float32', mode='r+', shape=tuple(data_shape))
+data_dict['errors']=np.memmap('data/errors.mmap', dtype='float32', mode='r+', shape=tuple(data_shape))
+
+
 
 #StratifiedKFold on dataset
 kfold=StratifiedKFold(n_splits=config.nfolds,shuffle=True, random_state=0)
 fold_indices={}
-for i, (train_index, test_index) in enumerate(kfold.split(np.arange(len(data)//2),dataset_name)):
+for i, (train_index, test_index) in enumerate(kfold.split(np.arange(len(dataset_name)),dataset_name)):
     fold_indices[i]=(train_index,test_index)
 
 
@@ -117,20 +136,9 @@ if config.use_data_percentage<1:
     print(f"number of sequences in train {len(train_indices)} after subsampling")
 
 if config.use_dirty_data:
-    print("using sequences where one of 2A3/DMS has SN>1")
-    data_dict['sequences']+=dirty_data.unique(subset=["sequence_id"],maintain_order=True)['sequence'].to_list()
-    data_dict['sequence_ids']+=dirty_data.unique(subset=["sequence_id"],maintain_order=True)['sequence_id'].to_list()
-    data_dict['labels']=np.concatenate([data_dict['labels'],
-                            dirty_data[label_names].to_numpy().astype('float32').reshape(-1,2,206).transpose(0,2,1)])
-    data_dict['errors']=np.concatenate([data_dict['errors'],
-                            dirty_data[error_label_names].to_numpy().astype('float32').reshape(-1,2,206).transpose(0,2,1)])
-    data_dict['SN']=np.concatenate([data_dict['SN'],
-                            dirty_data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)])
-
     print(f"number of sequences in train {len(train_indices)}")
-    train_indices=np.concatenate([train_indices,np.arange(len(data)//2,len(data)//2+len(dirty_data)//2)])
+    train_indices=np.concatenate([train_indices,np.arange(len(dataset_name),len(data_dict['labels']))])
     print(f"number of sequences in train {len(train_indices)} after using dirty data")
-
 
 
 
@@ -147,17 +155,17 @@ if hasattr(config,"dataset2drop"):
 #train_indices=np.concatenate([train_indices,np.arange(len(train_indices),len(train_indices)+len(dirty_data)//2)])
 
 
-val_datasets_names=data[np.concatenate([val_indices*2])]['dataset_name'].to_list()
+val_datasets_names=[dataset_name[i] for i in val_indices]
+
 with open("oofs/val_dataset_names.p",'wb+') as f:
     pickle.dump(val_datasets_names,f)
 
-del data
-del dirty_data
+# del data
+# del dirty_data
 
 print(f"train shape: {train_indices.shape}")
 print(f"val shape: {val_indices.shape}")
 
-val_dataset_name=[dataset_name[i] for i in val_indices]
 
 
 #pl_train=pl.read_parquet()
