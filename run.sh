@@ -1,1 +1,2 @@
-CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch run.py
+accelerate launch run.py
+accelerate launch inference.py

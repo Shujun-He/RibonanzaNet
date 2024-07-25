@@ -57,8 +57,8 @@ class RNADataset(Dataset):
         seq_length=len(sequence)
 
         #labels are in the order 2A3, DMS
-        labels=self.data_dict['labels'][idx][:seq_length]
-        errors=self.data_dict['errors'][idx][:seq_length]
+        labels=self.data_dict['labels'][idx][:seq_length].copy()
+        errors=self.data_dict['errors'][idx][:seq_length].copy()
 
 
         loss_mask = (labels==labels) #mask nan labels

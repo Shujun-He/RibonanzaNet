@@ -198,7 +198,7 @@ class ConvTransformerEncoderLayer(nn.Module):
             self.pair_attention_dropout_out=DropoutRowwise(dropout)
             self.pair_attention_dropout_in=DropoutColumnwise(dropout)
 
-        self.outer_product_mean=Outer_Product_Mean(in_dim=d_model,pairwise_dim=pairwise_dimension)
+        self.outer_product_mean=Outer_Product_Mean(in_dim=d_model,dim_msa=pairwise_dimension//4,pairwise_dim=pairwise_dimension)
 
         #self.deconv=nn.ConvTranspose1d(d_model,d_model,k)
         self.pair_transition=nn.Sequential(
@@ -403,7 +403,7 @@ class RibonanzaNet(nn.Module):
         # else:
         #     self.mask_dense=nn.Conv2d(1,config.nhead//4,1)
 
-        self.outer_product_mean=Outer_Product_Mean(in_dim=config.ninp,pairwise_dim=config.pairwise_dimension)
+        self.outer_product_mean=Outer_Product_Mean(in_dim=config.ninp,dim_msa=config.pairwise_dimension//4,pairwise_dim=config.pairwise_dimension)
         self.pos_encoder=relpos(config.pairwise_dimension)
 
     def forward(self, src,src_mask=None,return_aw=False):

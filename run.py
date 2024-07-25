@@ -113,8 +113,8 @@ with open('data/dataset_name.p','rb') as f:
 
 data_shape=np.load('data/data_shape.npy')
 
-data_dict['labels']=np.memmap('data/labels.mmap', dtype='float32', mode='r+', shape=tuple(data_shape))
-data_dict['errors']=np.memmap('data/errors.mmap', dtype='float32', mode='r+', shape=tuple(data_shape))
+data_dict['labels']=np.memmap('data/labels.mmap', dtype='float32', mode='r', shape=tuple(data_shape))
+data_dict['errors']=np.memmap('data/errors.mmap', dtype='float32', mode='r', shape=tuple(data_shape))
 
 
 
@@ -169,8 +169,10 @@ print(f"val shape: {val_indices.shape}")
 
 
 #pl_train=pl.read_parquet()
+seq_length=data_dict['labels'].shape[1]
 
-
+# print(seq_length)
+# exit()
 
 train_dataset=RNADataset(train_indices,data_dict,k=config.k,
                          flip=config.use_flip_aug)
