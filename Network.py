@@ -69,10 +69,22 @@ class ScaledDotProductAttention(nn.Module):
 
 
         if attn_mask is not None:
-            attn=attn.float().masked_fill(attn_mask == -1, float('-1e-9'))
-
-
+            attn=attn.float().masked_fill(attn_mask == -1, float('-1e9'))
+        # print(attn_mask.shape)
+        # print(attn_mask)
+        # print(attn[0,0])
+        # exit()
         attn = self.dropout(F.softmax(attn, dim=-1))
+
+        # if attn_mask is not None:
+        #     attn=attn.float().masked_fill(attn_mask == -1, 0.0)
+
+        # print(attn.shape)
+        # plt.imshow(attn[0,0].detach().cpu(),vmin=0)
+        # plt.savefig('attn.png',dpi=500)
+        # exit()
+        # plt.imshow(attn)
+
         # print(attn[0,0])
         # to_plot=attn[0,0].detach().cpu().numpy()
         # with open('mat.txt','w+') as f:
@@ -131,9 +143,11 @@ class MultiHeadAttention(nn.Module):
         # print(k.shape)
         # print(v.shape)
         if src_mask is not None:
+            src_mask=src_mask.clone().unsqueeze(-1).long()
             src_mask[src_mask==0]=-1
-            src_mask=src_mask.unsqueeze(-1).float()
-            attn_mask=torch.matmul(src_mask,src_mask.permute(0,2,1)).unsqueeze(1)
+            src_mask=src_mask.float()
+            #src_mask=src_mask.unsqueeze(-1)#.float()
+            attn_mask=torch.matmul(src_mask,src_mask.permute(0,2,1)).unsqueeze(1).long()
             q, attn = self.attention(q, k, v, mask=mask,attn_mask=attn_mask)
         else:
             q, attn = self.attention(q, k, v, mask=mask)
@@ -204,7 +218,7 @@ class ConvTransformerEncoderLayer(nn.Module):
         self.pair_transition=nn.Sequential(
                                            nn.LayerNorm(pairwise_dimension),
                                            nn.Linear(pairwise_dimension,pairwise_dimension*4),
-                                           nn.ReLU(inplace=True),
+                                           nn.ReLU(inplace=False),
                                            nn.Linear(pairwise_dimension*4,pairwise_dimension))
 
 
@@ -346,6 +360,12 @@ class TriangleMultiplicativeModule(nn.Module):
     def forward(self, x, src_mask = None):
         src_mask=src_mask.unsqueeze(-1).float()
         mask = torch.matmul(src_mask,src_mask.permute(0,2,1))
+
+        # print(mask.shape)
+        # plt.imshow(mask[0].detach().cpu())
+        # plt.savefig('mask.png')
+        # exit()
+
         assert x.shape[1] == x.shape[2], 'feature map must be symmetrical'
         if exists(mask):
             mask = rearrange(mask, 'b i j -> b i j ()')

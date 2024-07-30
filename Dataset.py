@@ -106,6 +106,8 @@ class RNADataset(Dataset):
 
 class TestRNAdataset(RNADataset):
     def __getitem__(self, idx):
+        
+        idx=self.indices[idx]
 
         #id=self.ids[idx]
 
@@ -135,11 +137,12 @@ class Custom_Collate_Obj:
 
 
     def __call__(self,data):
+        # 
         length=[]
         for i in range(len(data)):
             length.append(len(data[i]['sequence']))
         max_len=max(length)
-
+        max_len=206
 
         sequence=[]
         labels=[]
@@ -152,9 +155,11 @@ class Custom_Collate_Obj:
         #print(data['bpp'])
         if use_bpp:
             bpps=[]
+        length=[]
         for i in range(len(data)):
-            to_pad=max_len-length[i]
-
+            #to_pad=max_len-length[i]
+            to_pad=max_len-len(data[i]['sequence'])
+            length.append(len(data[i]['sequence']))
             #if to_pad>0:
             sequence.append(F.pad(data[i]['sequence'],(0,to_pad),value=4))
             #masks.append(data[i]['mask'])
@@ -205,7 +210,8 @@ class Custom_Collate_Obj_test(Custom_Collate_Obj):
         use_bpp='bpp' in data[0]
         if use_bpp:
             bpps=[]
-        max_len=max(length)
+        max_len=max(length)#+100
+        #max_len=206
         sequence=[]
         masks=[]
         for i in range(len(data)):
