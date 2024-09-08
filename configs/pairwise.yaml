@@ -2,18 +2,18 @@
 learning_rate: 0.001  # The learning rate for the optimizer
 batch_size: 4        # Number of samples per batch
 test_batch_size: 8        # Number of samples per batch
-epochs: 30            # Total training epochs
+epochs: 20            # Total training epochs
 #optimizer: "ranger"       # Optimization algorithm
-dropout: 0.05     # Dropout regularization rate
+dropout: 0.1     # Dropout regularization rate
 weight_decay: 0.0001
 k: 5
 ninp: 256
-nlayers: 9
+nlayers: 24
 nclass: 2
-ntoken: 5 #AUGC + padding/N token
+ntoken: 6 #AUGC + padding/N token
 nhead: 8
 #use_bpp: False
-use_flip_aug: true
+use_flip_aug: false
 #bpp_file_folder: "../../input/bpp_files/"
 gradient_accumulation_steps: 1
 use_triangular_attention: false

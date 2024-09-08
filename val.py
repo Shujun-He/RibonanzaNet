@@ -195,6 +195,9 @@ print(accelerator.distributed_type)
 
 
 model=RibonanzaNet(config)#.cuda()
+model.eval()
+model.load_state_dict(torch.load(f"models/model{0}.pt",map_location='cpu'))
+
 total_params = sum(p.numel() for p in model.parameters())
 print(f"Total number of parameters in the model: {total_params}")
 
@@ -208,190 +211,87 @@ val_criterion=torch.nn.L1Loss(reduction='none')
 cos_epoch=int(config.epochs*0.75)-1
 lr_schedule=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,(config.epochs-cos_epoch)*len(train_loader)//config.gradient_accumulation_steps)
 
-# for child_name, child in model.named_modules():
-#     if 'gate' in child_name:
-#         print(child_name)
-#     custom_weight_init(child,0)
-#exit()
+
 model, optimizer, train_loader, val_loader, lr_schedule= accelerator.prepare(
     model, optimizer, train_loader, val_loader, lr_schedule
 )
-# Print all the weights and biases
-# for name, param in model.named_parameters():
-#     # if 'weight' in name:
-#     #     print(f"Layer: {name}, Weights: {param.data}")
-#     # elif 'bias' in name:
-#     #     print(f"Layer: {name}, Biases: {param.data}")
-    
-#     if "gate" in name:
-#         print(f"Layer: {name}, Weights: {param.data}")
-#         print(f"Layer: {name}, Biases: {param.data}")
-    
 
-compiled_model = torch.compile(model,dynamic=False)
-#compiled_model = model
+# compiled_model = torch.compile(model)
+
+# compiled_model.train()
+#model.eval()
 
 best_val_loss=np.inf
-for epoch in range(config.epochs):
 
-    # training loop
-    
-    tbar = tqdm(train_loader)
-    total_loss=0
-    compiled_model.train()
-    #for batch in tqdm(train_loader):
+tbar = tqdm(val_loader)
+val_loss=0
+preds=[]
+gts=[]
+print("doing val")
+val_loss_masks=[]
 
-    for idx, batch in enumerate(tbar):
-        
-        src=batch['sequence']#.cuda()
-        masks=batch['masks'].bool()#.cuda()
-        labels=batch['labels']#.cuda()
-        SN=batch['SN']
+for idx,batch in enumerate(tbar):
+    src=batch['sequence']#.cuda()
+    masks=batch['masks'].bool()#.cuda()
+    labels=batch['labels']#.cuda()
+    bs=len(labels)
+    loss_masks=batch['loss_masks']#.cuda()
+    src_flipped=src.clone()
 
-        
+    length=batch['length']
+    for batch_idx in range(len(src)):
+        src_flipped[batch_idx,:length[batch_idx]]=src_flipped[batch_idx,:length[batch_idx]].flip(0)
+    #src_flipped=src_flipped.clone()
 
-        bs=len(labels)
-        #batch_attention_mask=batch['attention_mask'].unsqueeze(1)[:,:,:src.shape[-1],:src.shape[-1]]
-
-        loss_masks=batch['loss_masks']#.cuda()
-        errors=batch['errors']#.cuda()#.un
-#SSH FS test 
-        SN=SN.reshape(SN.shape[0],1,SN.shape[1])>=1
-        loss_masks=loss_masks*SN
-
-        # print(SN.shape)
-        # print(loss_masks.shape)
-        # exit()
-
-        #exit()
-        #batch_attention_mask=batch['attention_mask']
-        #batch_attention_mask=torch.stack([batch_attention_mask[:,:src.shape[-1],:src.shape[-1]],bpp],1)
-        SN=batch['SN']
-        # print(SN.shape)
-        # exit()
+    #with accelerator.autocast():
+    with torch.no_grad():
         with accelerator.autocast():
-            output=compiled_model(src,masks)
-            loss=criterion(output,labels)#*loss_weight BxLxC
-            loss=loss[loss_masks]
-            loss=loss.mean()
+            output=model(src,masks)
+            if config.use_flip_aug:
+                flipped_output=model(src_flipped,masks)
+                for batch_idx in range(len(flipped_output)):
+                    flipped_output[batch_idx,:length[batch_idx]]=flipped_output[batch_idx,:length[batch_idx]].flip(0)
 
-        accelerator.backward(loss/config.gradient_accumulation_steps)
-        
-        #loss.backward()
-        if (idx + 1) % config.gradient_accumulation_steps == 0:
-            if accelerator.sync_gradients:
-                accelerator.clip_grad_norm_(compiled_model.parameters(), 1)
-            optimizer.step()
-            optimizer.zero_grad()
-            if epoch > cos_epoch:
-                lr_schedule.step()
+                output=(flipped_output+output)/2
+    loss=val_criterion(output,labels)[loss_masks]
 
-        
-        total_loss+=loss.item()
-        #exit()
-        tbar.set_description(f"Epoch {epoch + 1} Loss: {total_loss/(idx+1)}")
-        
+    L=src.shape[1]
+    to_pad=seq_length-L
+    #output=output#[loss_masks]
+    #labels=labels#[loss_masks]
 
-        #break
-    train_loss=total_loss/(idx+1)
-    if epoch==cos_epoch:
-        torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}_pl_only.pt")
-    torch.save(accelerator.unwrap_model(optimizer).state_dict(),f"models/optimizer{config.fold}.pt")
-
-    # validation loop
-    model.eval()
-    tbar = tqdm(val_loader)
-    val_loss=0
-    preds=[]
-    gts=[]
-    print("doing val")
-    val_loss_masks=[]
-
-    for idx,batch in enumerate(tbar):
-        src=batch['sequence']#.cuda()
-        masks=batch['masks'].bool()#.cuda()
-        labels=batch['labels']#.cuda()
-        bs=len(labels)
-        loss_masks=batch['loss_masks']#.cuda()
-        src_flipped=src.clone()
-
-        length=batch['length']
-        for batch_idx in range(len(src)):
-            src_flipped[batch_idx,:length[batch_idx]]=src_flipped[batch_idx,:length[batch_idx]].flip(0)
-        src_flipped=src_flipped.clone()
-
-        #with accelerator.autocast():
-        with torch.no_grad():
-            with accelerator.autocast():
-                output=model(src,masks)
-                if config.use_flip_aug:
-                    flipped_output=model(src_flipped,masks)
-                    for batch_idx in range(len(flipped_output)):
-                        flipped_output[batch_idx,:length[batch_idx]]=flipped_output[batch_idx,:length[batch_idx]].flip(0)
-
-                    output=(flipped_output+output)/2
-        loss=val_criterion(output,labels)[loss_masks]
-
-        L=src.shape[1]
-        to_pad=seq_length-L
-        #output=output#[loss_masks]
-        #labels=labels#[loss_masks]
-
-        output=F.pad(output,(0,0,0,to_pad),value=0)
-        labels=F.pad(labels,(0,0,0,to_pad),value=0)
-        loss_masks=F.pad(loss_masks,(0,0,0,to_pad),value=0)
-
-        all_output = accelerator.gather(output)
-        all_labels = accelerator.gather(labels)
-        all_masks = accelerator.gather(loss_masks)
-
-        preds.append(all_output)
-        gts.append(all_labels)
-        val_loss_masks.append(all_masks)
-
-        loss=loss.mean()
-        #loss=torch.sqrt(loss)
-        val_loss+=loss.item()
-
-        tbar.set_description(f"Epoch {epoch + 1} Val Loss: {val_loss/(idx+1)}")
-
-        
-
-    #val_loss=val_loss/len(tbar)
-
-    preds=torch.cat(preds)
-    gts=torch.cat(gts)
-    val_loss_masks=torch.cat(val_loss_masks)
+    plt.plot(output[0,:,0].cpu())
+    plt.savefig(f"oofs/{idx}.png",dpi=250)
+    exit()
 
 
-    if accelerator.is_local_main_process:
-        val_loss=val_criterion(preds[val_loss_masks],gts[val_loss_masks]).mean().item()
+    output=F.pad(output,(0,0,0,to_pad),value=0)
+    labels=F.pad(labels,(0,0,0,to_pad),value=0)
+    loss_masks=F.pad(loss_masks,(0,0,0,to_pad),value=0)
 
-        logger.log([epoch,train_loss,val_loss])
+    all_output = accelerator.gather(output)
+    all_labels = accelerator.gather(labels)
+    all_masks = accelerator.gather(loss_masks)
 
-        if val_loss<best_val_loss:
-            best_val_loss=val_loss
-            torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}.pt")
-            #accelerator.save_model(model, f"models/model{config.fold}.pt")
-            data_dict = {
-                            "preds": preds.cpu().numpy(),
-                            "gts": gts.cpu().numpy(),
-                            "val_loss_masks": val_loss_masks.cpu().numpy()
-                        }
+    preds.append(all_output)
+    gts.append(all_labels)
+    val_loss_masks.append(all_masks)
 
-            # Save to pickle file
-            with open(f"oofs/{config.fold}.pkl", "wb+") as file:
-                pickle.dump(data_dict, file)
+    loss=loss.mean()
+    #loss=torch.sqrt(loss)
+    val_loss+=loss.item()
+
+    tbar.set_description(f"Val Loss: {val_loss/(idx+1)}")
+
+    
+
+#val_loss=val_loss/len(tbar)
+
+preds=torch.cat(preds)
+gts=torch.cat(gts)
+val_loss_masks=torch.cat(val_loss_masks)
 
 
-    #exit()
-    #exit()
 
-if accelerator.is_local_main_process:
-    torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}_lastepoch.pt")
 
-    end_time = time.time()
-    elapsed_time = end_time - start_time
 
-    with open("run_stats.json", 'w') as file:
-            json.dump({'Total_execution_time': elapsed_time}, file, indent=4)

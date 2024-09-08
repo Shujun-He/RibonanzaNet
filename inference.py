@@ -29,9 +29,9 @@ os.system('mkdir subs')
 #logger=CSVLogger(['epoch','train_loss','val_loss'],f'logs/fold{config.fold}.csv')
 
 data=pl.read_csv(f"{config.input_dir}/test_sequences.csv")
-lengths=data['sequence'].apply(len).to_list()
+lengths=[len(s) for s in data['sequence'].to_list()]
 data = data.with_columns(pl.Series('sequence_length',lengths))
-data = data.sort('sequence_length',descending=True)
+data = data.sort('sequence_length',descending=False)
 print(data['sequence_length'])
 #sample_sub=pd.read_csv(f"{config.input_dir}/sample_submission_arrayed.v1.0.3.csv")
 
@@ -48,7 +48,7 @@ assert len(test_ids)==len(data)
 
 val_dataset=TestRNAdataset(np.arange(len(data)),data_dict,k=config.k)
 val_loader=DataLoader(val_dataset,batch_size=config.test_batch_size,shuffle=False,
-                        collate_fn=Custom_Collate_Obj_test(),num_workers=min(config.batch_size,32))
+                        collate_fn=Custom_Collate_Obj_test(),num_workers=min(config.batch_size,16))
 
 # val_dataset[0]
 # exit()
@@ -59,6 +59,7 @@ for i in range(1):
     model=RibonanzaNet(config)#.cuda()
     model.eval()
     model.load_state_dict(torch.load(f"models/model{i}.pt",map_location='cpu'))
+    model=torch.compile(model)
     models.append(model)
 
 #exit()
@@ -76,7 +77,7 @@ preds=[]
 model.eval()
 for idx, batch in enumerate(tbar):
     src=batch['sequence']#.cuda()
-    masks=batch['masks']#.bool().cuda()
+    masks=batch['masks'].bool().cuda()
     bs=len(src)
 
     src_flipped=src.clone()
@@ -103,6 +104,9 @@ for idx, batch in enumerate(tbar):
 
                     output.append(flipped_output)
             output=torch.stack(output).mean(0)
+    
+    # plt.plot(output[0,:,0].cpu())
+    # plt.savefig(f"inference/{idx}.png",dpi=250)
     #exit()
     output = accelerator.pad_across_processes(output,1)
     all_output = accelerator.gather(output).cpu().numpy()
