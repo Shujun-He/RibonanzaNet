@@ -3,7 +3,6 @@ from Network import *
 from Functions import *
 from tqdm import tqdm
 from sklearn.model_selection import KFold
-from ranger import Ranger
 import argparse
 from sklearn.metrics import mean_squared_error
 from accelerate import Accelerator
@@ -19,7 +18,7 @@ args = parser.parse_args()
 
 config = load_config_from_yaml(args.config_path)
 
-accelerator = Accelerator(mixed_precision='fp16')
+accelerator = Accelerator(mixed_precision='bf16')
 
 os.environ["CUDA_VISIBLE_DEVICES"]=config.gpu_id
 os.system('mkdir predictions')
@@ -58,7 +57,14 @@ models=[]
 for i in range(1):
     model=RibonanzaNet(config)#.cuda()
     model.eval()
-    model.load_state_dict(torch.load(f"models/model{i}.pt",map_location='cpu'))
+    #get rid of prefix added by accelerate
+    weights=torch.load(f"models/model{i}.pt",map_location='cpu')
+    renamed_weights={}
+    for key in weights:
+        renamed_weights[key.replace("_orig_mod.","")]=weights[key]
+
+    model.load_state_dict(renamed_weights)
+
     model=torch.compile(model)
     models.append(model)
 

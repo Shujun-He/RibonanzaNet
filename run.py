@@ -4,7 +4,7 @@ from Network import *
 from Functions import *
 from tqdm import tqdm
 from sklearn.model_selection import KFold, StratifiedKFold
-from ranger import Ranger
+from pytorch_ranger import Ranger
 import argparse
 from accelerate import Accelerator
 import time
@@ -27,7 +27,7 @@ np.random.seed(0)
 
 config = load_config_from_yaml(args.config_path)
 
-accelerator = Accelerator(mixed_precision='fp16')
+accelerator = Accelerator(mixed_precision='bf16')
 
 #os.environ["POLARS_MAX_THREADS"] = "1"
 os.environ["CUDA_VISIBLE_DEVICES"]=str(config.gpu_id)
