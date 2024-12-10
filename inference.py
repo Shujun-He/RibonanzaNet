@@ -58,12 +58,16 @@ for i in range(1):
     model=RibonanzaNet(config)#.cuda()
     model.eval()
     #get rid of prefix added by accelerate
-    weights=torch.load(f"models/model{i}.pt",map_location='cpu')
-    renamed_weights={}
-    for key in weights:
-        renamed_weights[key.replace("_orig_mod.","")]=weights[key]
+    # weights=torch.load(f"models/model{i}.pt",map_location='cpu')
+    # renamed_weights={}
+    # for key in weights:
+    #     renamed_weights[key.replace("_orig_mod.","")]=weights[key]
 
-    model.load_state_dict(renamed_weights)
+
+
+    # model.load_state_dict(renamed_weights)
+    model.load_state_dict(torch.load("ckpt/pytorch_model.bin"))
+
 
     model=torch.compile(model)
     models.append(model)

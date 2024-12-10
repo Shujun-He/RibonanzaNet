@@ -10,6 +10,10 @@ from accelerate import Accelerator
 import time
 import json
 import matplotlib.pyplot as plt
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.distributed.fsdp import StateDictType, FullStateDictConfig, ShardedStateDictConfig
+
+
 # import torch._dynamo
 # torch._dynamo.config.suppress_errors = True
 
@@ -20,6 +24,7 @@ start_time = time.time()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config_path', type=str, default="configs/pairwise.yaml")
+parser.add_argument('--compile', type=str, default="true")
 
 args = parser.parse_args()
 
@@ -39,68 +44,6 @@ os.system('mkdir models')
 os.system('mkdir oofs')
 logger=CSVLogger(['epoch','train_loss','val_loss'],f'logs/fold{config.fold}.csv')
 
-#exit()
-
-#data=pd.read_csv(f"{config.input_dir}/train_data.v2.3.0.csv.gz")
-# data=pl.read_csv(f"{config.input_dir}/train_data.csv")
-
-# #new_ids=
-# #data=data.with_columns(pl.Series(name="id", values=[id+"_"+exp_type for id, exp_type in zip(data['sequence_id'],data['experiment_type'])]))
-
-# pl.Config.set_fmt_str_lengths(100)
-# # print(data['dataset_name'].value_counts(sort=True))
-# # print(data['dataset_name'].value_counts(sort=True))
-# # exit()
-
-# data=drop_pk5090_duplicates(data)
-
-# print("before dropping duplicates data shape is:",data.shape)
-# data=data.unique(subset=["sequence_id", "experiment_type"]).sort(["sequence_id", "experiment_type"])
-# print("after dropping duplicates data shape is:",data.shape)
-# #data=data.sort(["signal_to_noise"],descending=True).unique(subset=["sequence_id", "experiment_type"]).sort(["sequence_id", "experiment_type"])
-
-# n_sequences_total=len(data)//2
-# #get necessary data as lists and numpy arrays
-# seq_length=206
-
-# #filter out a sequence if min SN is smaller than 1
-# SN=data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
-# SN=SN.min(-1)
-# SN=np.repeat(SN,2)
-# print("before filtering data shape is:",data.shape)
-# dirty_data=data.filter((SN<=1))
-# data=data.filter(SN>1)
-# print("after filtering data shape is:",data.shape)
-# print("direty data shape is:",dirty_data.shape)
-
-# # get sequences where one of 2A3/DMS has SN>1
-# dirty_SN=dirty_data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
-# dirty_SN=dirty_SN.max(-1)
-# dirty_SN=np.repeat(dirty_SN,2)
-# dirty_data=dirty_data.filter(dirty_SN>1)
-# print("after filtering dirty_data shape is:",dirty_data.shape)
-
-
-# label_names=["reactivity_{:04d}".format(number+1) for number in range(seq_length)]
-# error_label_names=["reactivity_error_{:04d}".format(number+1) for number in range(seq_length)]
-
-# sequences=data.unique(subset=["sequence_id"],maintain_order=True)['sequence'].to_list()
-# sequence_ids=data.unique(subset=["sequence_id"],maintain_order=True)['sequence_id'].to_list()
-# labels=data[label_names].to_numpy().astype('float32').reshape(-1,2,206).transpose(0,2,1)
-# errors=data[error_label_names].to_numpy().astype('float32').reshape(-1,2,206).transpose(0,2,1)
-# SN=data['signal_to_noise'].to_numpy().astype('float32').reshape(-1,2)
-# dataset_name=data['dataset_name'].to_list()
-# dataset_name=[dataset_name[i*2].replace('2A3','NULL').replace('DMS','NULL') for i in range(len(data)//2)]
-
-
-# data_dict = {
-#     'sequences': sequences,
-#     'sequence_ids': sequence_ids,
-#     'labels': labels,
-#     'errors': errors,
-#     'SN': SN,
-# }
-#exit()
 
 with open('data/data_dict.p','rb') as f:
     # data_dict = {
@@ -180,7 +123,10 @@ seq_length=data_dict['labels'].shape[1]
 train_dataset=RNADataset(train_indices,data_dict,k=config.k,
                          flip=config.use_flip_aug)
 train_loader=DataLoader(train_dataset,batch_size=config.batch_size,shuffle=True,
-                        collate_fn=Custom_Collate_Obj(),num_workers=min(config.batch_size,16))
+                        collate_fn=Custom_Collate_Obj(),num_workers=min(config.batch_size,16),
+                        pin_memory=True,
+                        prefetch_factor=4,
+                        persistent_workers=True)
 
 sample=train_dataset[0]
 
@@ -199,6 +145,7 @@ total_params = sum(p.numel() for p in model.parameters())
 print(f"Total number of parameters in the model: {total_params}")
 
 optimizer = Ranger(model.parameters(),weight_decay=config.weight_decay, lr=config.learning_rate)
+#optimizer = torch.optim.Adam(model.parameters(),weight_decay=config.weight_decay, lr=config.learning_rate)
 
 criterion=torch.nn.L1Loss(reduction='none')
 val_criterion=torch.nn.L1Loss(reduction='none')
@@ -227,9 +174,9 @@ model, optimizer, train_loader, val_loader, lr_schedule= accelerator.prepare(
 #         print(f"Layer: {name}, Weights: {param.data}")
 #         print(f"Layer: {name}, Biases: {param.data}")
     
-
-compiled_model = torch.compile(model,dynamic=False)
-#compiled_model = model
+if args.compile == 'true':
+    model = torch.compile(model,dynamic=False)
+#model = model
 
 best_val_loss=np.inf
 for epoch in range(config.epochs):
@@ -238,7 +185,7 @@ for epoch in range(config.epochs):
     
     tbar = tqdm(train_loader)
     total_loss=0
-    compiled_model.train()
+    model.train()
     #for batch in tqdm(train_loader):
 
     for idx, batch in enumerate(tbar):
@@ -270,7 +217,7 @@ for epoch in range(config.epochs):
         # print(SN.shape)
         # exit()
         with accelerator.autocast():
-            output=compiled_model(src,masks)
+            output=model(src,masks)
             loss=criterion(output,labels)#*loss_weight BxLxC
             loss=loss[loss_masks]
             loss=loss.mean()
@@ -279,8 +226,8 @@ for epoch in range(config.epochs):
         
         #loss.backward()
         if (idx + 1) % config.gradient_accumulation_steps == 0:
-            if accelerator.sync_gradients:
-                accelerator.clip_grad_norm_(compiled_model.parameters(), 1)
+            #if accelerator.sync_gradients:
+            accelerator.clip_grad_norm_(model.parameters(), 1)
             optimizer.step()
             optimizer.zero_grad()
             if epoch > cos_epoch:
@@ -294,9 +241,11 @@ for epoch in range(config.epochs):
 
         #break
     train_loss=total_loss/(idx+1)
-    if epoch==cos_epoch:
-        torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}_pl_only.pt")
-    torch.save(accelerator.unwrap_model(optimizer).state_dict(),f"models/optimizer{config.fold}.pt")
+    # if accelerator.is_local_main_process:
+    #     if epoch==cos_epoch:
+    #     #     torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}_pl_only.pt")
+    #     # torch.save(accelerator.unwrap_model(optimizer).state_dict(),f"models/optimizer{config.fold}.pt")
+    #         accelerator.save_state("cos_models")
 
     # validation loop
     model.eval()
@@ -358,21 +307,44 @@ for epoch in range(config.epochs):
         
 
     #val_loss=val_loss/len(tbar)
-
+        #break
     preds=torch.cat(preds)
     gts=torch.cat(gts)
     val_loss_masks=torch.cat(val_loss_masks)
 
 
-    if accelerator.is_local_main_process:
+    # print(accelerator.is_main_process)
+    # exit()
+    if accelerator.is_main_process:
         val_loss=val_criterion(preds[val_loss_masks],gts[val_loss_masks]).mean().item()
 
         logger.log([epoch,train_loss,val_loss])
 
         if val_loss<best_val_loss:
             best_val_loss=val_loss
-            torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}.pt")
+            #if torch.distributed.get_rank() == 0:
+            #torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}.pt")
+            #torch.save(model.state_dict(),f"models/model{config.fold}.pt")
+            #state_dict=accelerator.get_state_dict(model)
+            #torch.save(state_dict,f"models/model{config.fold}.pt")
+            # print(accelerator.unwrap_model(model).state_dict())
+            # unwrapped_model=accelerator.unwrap_model(model)
+            # full_state_dict_config = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+            # with FSDP.state_dict_type(unwrapped_model, StateDictType.FULL_STATE_DICT, full_state_dict_config):
+            #     state = accelerator.get_state_dict(unwrapped_model)
+            # exit()
+            # Using context manager for saving
+            # with FSDP.state_dict_type(
+            #     model, 
+            #     StateDictType.SHARDED_STATE_DICT,
+            #     ShardedStateDictConfig(offload_to_cpu=True)  # Optionally offload to CPU
+            # ):
+            #     state_dict = model.state_dict()
+            #     # Each rank saves its own shard
+            #     torch.save(state_dict, f"model-shard-{torch.distributed.get_rank()}.pt")
+
             #accelerator.save_model(model, f"models/model{config.fold}.pt")
+            #accelerator.save_state("models")
             data_dict = {
                             "preds": preds.cpu().numpy(),
                             "gts": gts.cpu().numpy(),
@@ -382,13 +354,15 @@ for epoch in range(config.epochs):
             # Save to pickle file
             with open(f"oofs/{config.fold}.pkl", "wb+") as file:
                 pickle.dump(data_dict, file)
-
+    accelerator.save_state(f"models/epoch_{epoch}")
+    # if val_loss<best_val_loss:
+    #     accelerator.save_state("ckpt")
 
     #exit()
     #exit()
 
-if accelerator.is_local_main_process:
-    torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}_lastepoch.pt")
+if accelerator.is_main_process:
+    #torch.save(accelerator.unwrap_model(model).state_dict(),f"models/model{config.fold}_lastepoch.pt")
 
     end_time = time.time()
     elapsed_time = end_time - start_time

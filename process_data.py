@@ -4,7 +4,6 @@ from Network import *
 from Functions import *
 from tqdm import tqdm
 from sklearn.model_selection import KFold, StratifiedKFold
-from ranger import Ranger
 import argparse
 from accelerate import Accelerator
 import time

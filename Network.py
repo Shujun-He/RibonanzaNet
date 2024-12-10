@@ -207,7 +207,7 @@ class MultiHeadAttention(nn.Module):
 class ConvTransformerEncoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, 
-                 dim_feedforward, pairwise_dimension, use_triangular_attention, dropout=0.1, k = 3,
+                 dim_feedforward, pairwise_dimension, use_triangular_attention, dim_msa, dropout=0.1, k = 3,
                  ):
         super(ConvTransformerEncoderLayer, self).__init__()
         #self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
@@ -251,7 +251,7 @@ class ConvTransformerEncoderLayer(nn.Module):
             self.pair_attention_dropout_out=DropoutRowwise(dropout)
             self.pair_attention_dropout_in=DropoutColumnwise(dropout)
 
-        self.outer_product_mean=Outer_Product_Mean(in_dim=d_model,dim_msa=pairwise_dimension//4,pairwise_dim=pairwise_dimension)
+        self.outer_product_mean=Outer_Product_Mean(in_dim=d_model,dim_msa=dim_msa,pairwise_dim=pairwise_dimension)
 
 
         # self.sequence_transititon=TransitionLayer(d_model)
@@ -389,7 +389,7 @@ class TriangleMultiplicativeModule(nn.Module):
         if mix == 'outgoing':
             self.mix_einsum_eq = '... i k d, ... j k d -> ... i j d'
         elif mix == 'ingoing':
-            self.mix_einsum_eq = '... k j d, ... k i d -> ... i j d'
+            self.mix_einsum_eq = '... k i d, ... k j d -> ... i j d'
 
         self.to_out_norm = nn.LayerNorm(hidden_dim)
         self.to_out = nn.Linear(hidden_dim, dim)
@@ -438,7 +438,7 @@ class RibonanzaNet(nn.Module):
         super(RibonanzaNet, self).__init__()
         self.config=config
         nhid=config.ninp*4
-
+        self._tied_weights_keys = [] #avoids AttributeError: 'RibonanzaNet' object has no attribute '_tied_weights_keys'
         self.transformer_encoder = []
         print(f"constructing {config.nlayers} ConvTransformerEncoderLayers")
         for i in range(config.nlayers):
@@ -451,6 +451,7 @@ class RibonanzaNet(nn.Module):
                                                                         dim_feedforward = nhid, 
                                                                         pairwise_dimension= config.pairwise_dimension,
                                                                         use_triangular_attention=config.use_triangular_attention,
+                                                                        dim_msa=config.dim_msa,
                                                                         dropout = config.dropout, k=k))
                 
         self.transformer_encoder= nn.ModuleList(self.transformer_encoder)
@@ -466,7 +467,7 @@ class RibonanzaNet(nn.Module):
 
         recursive_linear_init(self.decoder,scale_factor)
 
-        self.outer_product_mean=Outer_Product_Mean(in_dim=config.ninp,dim_msa=config.pairwise_dimension//4,pairwise_dim=config.pairwise_dimension)
+        self.outer_product_mean=Outer_Product_Mean(in_dim=config.ninp,dim_msa=config.dim_msa,pairwise_dim=config.pairwise_dimension)
         self.pos_encoder=relpos(config.pairwise_dimension)
 
     def forward(self, src,src_mask=None,return_aw=False):
