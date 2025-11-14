@@ -1,6 +1,6 @@
 # RibonanzaNet
 
-Training code for RibonanzaNet. 
+Training code for RibonanzaNet, preprint: https://www.biorxiv.org/content/10.1101/2024.02.24.581671v1. 
 
 # Example notebooks
 
