@@ -5,9 +5,11 @@ Training code for RibonanzaNet, preprint: https://www.biorxiv.org/content/10.110
 # Example notebooks
 
 You may not want to retrain RibonanzaNet from scratch and rather just use pretrained checkpoints, so we have created example notebooks: \
-finetune: https://www.kaggle.com/code/shujun717/ribonanzanet-2d-structure-finetune \
+secondary structure finetune: https://www.kaggle.com/code/shujun717/ribonanzanet-2d-structure-finetune \
 secondary structure inference: https://www.kaggle.com/code/shujun717/ribonanzanet-2d-structure-inference \
 chemical mapping inference: https://www.kaggle.com/code/shujun717/ribonanzanet-inference
+openvaccine degradation finetune: https://www.kaggle.com/code/shujun717/ribonanzanet-deg-finetune
+openvaccine degradation inference: https://www.kaggle.com/code/shujun717/ribonanzanet-2d-structure-inference
 
 ## Data Download
 
